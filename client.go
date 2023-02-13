@@ -7,10 +7,14 @@ import (
 	"time"
 )
 
+type send interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
 var (
 	one sync.Once
 	c   *http.Client
-	tr  = &http.Transport{
+	Tr  = &http.Transport{
 		MaxConnsPerHost:     5,
 		IdleConnTimeout:     time.Second * 5,
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
@@ -19,11 +23,11 @@ var (
 	}
 )
 
-func client() *http.Client {
+func DefaultClient() send {
 	if c == nil {
 		one.Do(func() {
 			c = &http.Client{
-				Transport: tr,
+				Transport: Tr,
 				Timeout:   time.Second * 5,
 			}
 		})
@@ -33,20 +37,5 @@ func client() *http.Client {
 }
 
 func SetProxy(py Proxy) {
-	py.Proxy(tr)
-}
-
-func SetTransport(t *http.Transport) {
-	tr = t
-}
-
-func SetClient(cl *http.Client) {
-	c = cl
-}
-
-func DefaultClient() *http.Client {
-	return &http.Client{
-		Transport: tr,
-		Timeout:   time.Second * 5,
-	}
+	py.Proxy(Tr)
 }

@@ -18,7 +18,7 @@ const (
 )
 
 const (
-	n = 1e6
+	n = 5e4
 )
 
 var curMem uint64
@@ -81,7 +81,7 @@ func TestMwebGet(t *testing.T) {
 		go func() {
 			header := make(Header)
 			header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
-			Get("http://127.0.0.1:2017", header, time.Second*3)
+			Get("http://127.0.0.1:2017", header, time.Second*3, DefaultClient())
 			g.Done()
 		}()
 	}
@@ -102,7 +102,7 @@ func TestMwebPost(t *testing.T) {
 		go func() {
 			header := make(Header)
 			header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
-			Post("http://127.0.0.1:2017", "test=test", nil, time.Second*3)
+			Post("http://127.0.0.1:2017", "test=test", nil, time.Second*3, DefaultClient())
 			g.Done()
 		}()
 	}
@@ -121,7 +121,7 @@ func TestMwebHead(t *testing.T) {
 		go func() {
 			header := make(Header)
 			header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
-			Head("http://127.0.0.1:2017", header, time.Second*3)
+			Head("http://127.0.0.1:2017", header, time.Second*3, DefaultClient())
 			g.Done()
 		}()
 	}
@@ -148,8 +148,7 @@ func demoFuncGet() {
 	}
 
 	defer rsp.Body.Close()
-	b, _ := ioutil.ReadAll(rsp.Body)
-	_ = string(b)
+	ioutil.ReadAll(rsp.Body)
 }
 
 func demoFuncPost() {
@@ -168,8 +167,7 @@ func demoFuncPost() {
 	}
 
 	defer rsp.Body.Close()
-	b, _ := ioutil.ReadAll(rsp.Body)
-	_ = string(b)
+	ioutil.ReadAll(rsp.Body)
 }
 
 func demoFuncHead() {

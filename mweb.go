@@ -59,7 +59,7 @@ var (
 	bfFree = sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
 )
 
-func Get(addr string, header Header, timeout time.Duration) (*Response, error) {
+func Get(addr string, header Header, timeout time.Duration, run send) (*Response, error) {
 	get := getFree.Get().(*http.Request)
 	if err := setRequest(get, addr); err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func Get(addr string, header Header, timeout time.Duration) (*Response, error) {
 	ctx, cannle := context.WithTimeout(context.Background(), timeout)
 	defer cannle()
 	get = get.WithContext(ctx)
-	resp, err := client().Do(get)
+	resp, err := run.Do(get)
 	getFree.Put(get)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func Get(addr string, header Header, timeout time.Duration) (*Response, error) {
 	return handleBody(resp), nil
 }
 
-func Head(addr string, header Header, timeout time.Duration) (Header, error) {
+func Head(addr string, header Header, timeout time.Duration, run send) (Header, error) {
 	head := headFree.Get().(*http.Request)
 	if err := setRequest(head, addr); err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func Head(addr string, header Header, timeout time.Duration) (Header, error) {
 	ctx, cannle := context.WithTimeout(context.Background(), timeout)
 	defer cannle()
 
-	resp, err := client().Do(head.WithContext(ctx))
+	resp, err := run.Do(head.WithContext(ctx))
 	headFree.Put(head)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func Head(addr string, header Header, timeout time.Duration) (Header, error) {
 	return resp.Header, nil
 }
 
-func Post(addr, body string, header Header, timeout time.Duration) (*Response, error) {
+func Post(addr, body string, header Header, timeout time.Duration, run send) (*Response, error) {
 	post := postFree.Get().(*http.Request)
 	if err := setRequest(post, addr); err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func Post(addr, body string, header Header, timeout time.Duration) (*Response, e
 	ctx, cannle := context.WithTimeout(context.Background(), timeout)
 	defer cannle()
 
-	resp, err := client().Do(post.WithContext(ctx))
+	resp, err := run.Do(post.WithContext(ctx))
 	postFree.Put(post)
 	if err != nil {
 		return nil, err
