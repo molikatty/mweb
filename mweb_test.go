@@ -18,7 +18,7 @@ const (
 )
 
 const (
-	n = 5e4
+	n = 1e6
 )
 
 var curMem uint64

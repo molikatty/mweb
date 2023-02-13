@@ -39,3 +39,14 @@ func SetProxy(py Proxy) {
 func SetTransport(t *http.Transport) {
 	tr = t
 }
+
+func SetClient(cl *http.Client) {
+	c = cl
+}
+
+func DefaultClient() *http.Client {
+	return &http.Client{
+		Transport: tr,
+		Timeout:   time.Second * 5,
+	}
+}

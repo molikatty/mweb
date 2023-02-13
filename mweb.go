@@ -9,10 +9,15 @@ import (
 	"net/url"
 	"sync"
 	"time"
-	"unsafe"
 )
 
-type Header http.Header
+type Header = http.Header
+
+type Response struct {
+	HD   Header
+	Body []byte
+	Code int
+}
 
 var (
 	getFree = sync.Pool{
@@ -49,34 +54,29 @@ var (
 		},
 	}
 
+	respFree = sync.Pool{New: func() interface{} { return new(Response) }}
+
 	bfFree = sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
 )
 
-func Get(addr string, header Header, timeout time.Duration) (string, error) {
+func Get(addr string, header Header, timeout time.Duration) (*Response, error) {
 	get := getFree.Get().(*http.Request)
 	if err := setRequest(get, addr); err != nil {
-		return "", err
+		return nil, err
 	}
 	get.Header = http.Header(header)
-	getFree.Put(get)
 
 	ctx, cannle := context.WithTimeout(context.Background(), timeout)
 	defer cannle()
-
-	resp, err := client().Do(get.WithContext(ctx))
+	get = get.WithContext(ctx)
+	resp, err := client().Do(get)
+	getFree.Put(get)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	buf := bfFree.Get().(*bytes.Buffer)
-	buf.Reset()
-	io.Copy(buf, resp.Body)
-	bfFree.Put(buf)
-	b := buf.Bytes()
-
-	return *(*string)(unsafe.Pointer(&b)), nil
-
+	return handleBody(resp), nil
 }
 
 func Head(addr string, header Header, timeout time.Duration) (Header, error) {
@@ -84,28 +84,27 @@ func Head(addr string, header Header, timeout time.Duration) (Header, error) {
 	if err := setRequest(head, addr); err != nil {
 		return nil, err
 	}
-	head.Header = http.Header(header)
-	headFree.Put(head)
+	head.Header = header
 
 	ctx, cannle := context.WithTimeout(context.Background(), timeout)
 	defer cannle()
 
 	resp, err := client().Do(head.WithContext(ctx))
+	headFree.Put(head)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	return Header(resp.Header), nil
+	return resp.Header, nil
 }
 
-func Post(addr, body string, header Header, timeout time.Duration) (string, error) {
+func Post(addr, body string, header Header, timeout time.Duration) (*Response, error) {
 	post := postFree.Get().(*http.Request)
 	if err := setRequest(post, addr); err != nil {
-		return "", err
+		return nil, err
 	}
-	post.Header = http.Header(header)
-	postFree.Put(post)
+	post.Header = header
 	if body == "" {
 		post.Body = nil
 	} else {
@@ -122,18 +121,13 @@ func Post(addr, body string, header Header, timeout time.Duration) (string, erro
 	defer cannle()
 
 	resp, err := client().Do(post.WithContext(ctx))
+	postFree.Put(post)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	buf := bfFree.Get().(*bytes.Buffer)
-	buf.Reset()
-	io.Copy(buf, resp.Body)
-	b := buf.Bytes()
-	bfFree.Put(buf)
-
-	return *(*string)(unsafe.Pointer(&b)), nil
+	return handleBody(resp), nil
 }
 
 func setRequest(h *http.Request, addr string) error {
@@ -146,6 +140,14 @@ func setRequest(h *http.Request, addr string) error {
 	return nil
 }
 
-func (h Header) Set(key, value string) {
-	h[key] = []string{value}
+func handleBody(resp *http.Response) *Response {
+	buf := bfFree.Get().(*bytes.Buffer)
+	buf.Reset()
+	io.Copy(buf, resp.Body)
+	defer bfFree.Put(buf)
+	return &Response{
+		Code: resp.StatusCode,
+		HD:   resp.Header,
+		Body: buf.Bytes(),
+	}
 }
